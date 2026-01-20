@@ -1,0 +1,8 @@
+# Project Dependencies
+# --------------------
+# Core logic uses Python Standard Library.
+# Development and Testing dependencies:
+pytest
+pandas
+black
+flake8

@@ -4,20 +4,24 @@
 This project demonstrates the implementation of **Slowly Changing Dimensions (SCD) Type 2**.
 SCD Type 2 is a data warehousing technique used to track historical data by creating multiple records for a given natural key in the dimensional tables, preserving the history of changes.
 
-## Database Setup
-The database schema is defined in `setup_database.sql` and initialized using `create_database.py`.
+## Setup
 
-### Tables Created
-1. **`sales_records_current`** (Source Table):
-   - Represents the current state of sales data.
-   - Contains sample data inserted during setup.
+### 1. Create a Virtual Environment (Recommended)
+It is recommended to create and activate a virtual environment to keep project dependencies isolated.
 
-2. **`sales_records_cdc`** (CDC/Dimension Table):
-   - Stores historical changes using SCD Type 2 logic.
-   - Includes audit columns: `row_hash`, `row_start_date`, `row_end_date`, and `is_current`.
+```bash
+# Create a virtual environment named 'venv'
+python -m venv venv
 
-### Usage
-Run the Python script to initialize the SQLite database (`scd2.db`):
+# Activate the environment
+# On Windows:
+.\venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
+### 2. Initialize the Database
+Run the `create_database.py` script. This will create the `scd2.db` SQLite database and execute `setup_database.sql` to create the tables and insert initial sample data.
 ```bash
 python create_database.py
 ```
