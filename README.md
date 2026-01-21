@@ -192,6 +192,18 @@ This shows current synchronization status between source and CDC tables.
 
 #### Step 2: Make Changes to Source Data
 
+**Option A: Use the helper script (Recommended):**
+```bash
+python add_sample_changes.py
+```
+
+This script will:
+- Insert a new record (ID 20)
+- Update an existing record (ID 1)
+- Show you the next steps
+
+**Option B: Write your own Python script:**
+Create a file (e.g., `my_changes.py`) with:
 ```python
 import sqlite3
 
@@ -213,6 +225,15 @@ cursor.execute("""
 
 conn.commit()
 conn.close()
+print("Changes applied!")
+```
+
+Then run: `python my_changes.py`
+
+**Option C: Use SQLite command line:**
+```bash
+sqlite3 scd2.db "INSERT INTO sales_records_current VALUES (20, '2024-02-01', 'New Product', 'Electronics', 299.99, 1, 299.99, 2001, 'South', 'Active');"
+sqlite3 scd2.db "UPDATE sales_records_current SET price = 1499.99, total_amount = 1499.99 WHERE id = 1;"
 ```
 
 #### Step 3: Verify Pending Changes
@@ -490,6 +511,7 @@ SCDType2_Project/
 ├── create_database.py          # Database initialization script
 ├── scd_type2_process.py        # Main SCD Type 2 processing logic
 ├── verify_records.py           # ⭐ Enhanced verification & detection script
+├── add_sample_changes.py       # Helper script to add sample insert/update
 ├── demo_detection.py           # Demo script for testing detection
 ├── reset_for_tests.py          # Database reset utility for testing
 ├── setup_database.sql          # SQL schema and sample data
