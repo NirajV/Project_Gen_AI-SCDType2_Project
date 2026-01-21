@@ -41,10 +41,10 @@ INSERT INTO sales_records_current VALUES
 (1, '2024-01-15', 'Laptop Pro', 'Electronics', 1299.99, 1, 1299.99, 1001, 'North', 'Active'),
 (2, '2024-01-16', 'Mouse Wireless', 'Accessories', 29.99, 2, 59.98, 1002, 'South', 'Active'),
 (3, '2024-01-17', 'Keyboard Mechanical', 'Accessories', 89.99, 1, 89.99, 1003, 'East', 'Active'),
-(4, '2024-01-18', 'Monitor 27-inch', 'Electronics', 1000.99, 1, 399.99, 1004, 'West', 'Active'),
-(5, '2024-01-19', 'USB Hub', 'Accessories', 100.99, 3, 504.97, 1005, 'North', 'Active'),
-(6, '2024-01-19', 'Wifi Router', 'Electronics', 100.99, 3, 504.97, 1005, 'North', 'Active'),
-(7, '2024-01-19', 'UIphone', 'Electronics', 1000.99, 3, 504.97, 1005, 'West', 'Active');
+(4, '2024-01-18', 'Monitor 27-inch', 'Electronics', 399.99, 1, 399.99, 1004, 'West', 'Active'),
+(5, '2024-01-19', 'USB Hub', 'Accessories', 168.99, 3, 506.97, 1005, 'North', 'Active'),
+(6, '2024-01-19', 'WiFi Router', 'Electronics', 79.99, 1, 79.99, 1006, 'South', 'Active'),
+(7, '2024-01-19', 'iPhone 14', 'Electronics', 999.99, 1, 999.99, 1007, 'West', 'Active');
 
 
 -- ============================================================================

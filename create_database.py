@@ -1,14 +1,38 @@
+"""
+Database Setup Module for SCD Type 2 Implementation
+
+This module creates and initializes the SQLite database for the SCD Type 2 project.
+It executes the SQL schema script and loads initial sample data.
+"""
+
 import sqlite3
 import os
+from typing import Optional
 
-# Source: https://github.com/NirajV/Project_Gen_AI-Data_Tranformation/blob/main/create_database.py
+# Constants
+DB_FILENAME: str = 'scd2.db'
+SQL_FILENAME: str = 'setup_database.sql'
 
-def create_database():
+
+def create_database() -> None:
     """
     Creates a SQLite database and executes the setup_database.sql script.
+    
+    This function:
+    1. Removes any existing database file for a clean setup
+    2. Creates a new SQLite database
+    3. Executes the SQL schema script to create tables and load sample data
+    4. Handles errors gracefully with informative messages
+    
+    Returns:
+        None
+        
+    Raises:
+        sqlite3.Error: If database operations fail
+        OSError: If file operations fail
     """
-    db_filename = 'scd2.db'
-    sql_filename = 'setup_database.sql'
+    db_filename = DB_FILENAME
+    sql_filename = SQL_FILENAME
     
     # Get the absolute path of the current script to locate the SQL file correctly
     script_dir = os.path.dirname(os.path.abspath(__file__))

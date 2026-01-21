@@ -1,31 +1,75 @@
+"""
+Test Suite for SCD Type 2 Implementation
+
+This module contains comprehensive tests for the SCD Type 2 process, including:
+- Initial data loading
+- Change detection and historical tracking
+- New record insertion
+- Idempotency verification
+
+Author: Data Engineering Team
+Version: 2.0
+Date: January 2026
+"""
+
 import pytest
 import sqlite3
 import os
-from create_database import create_database
+import time
+from typing import Generator
+from create_database import create_database, DB_FILENAME
 from scd_type2_process import scd_type2_process
 
-# Define database path relative to this script
-DB_NAME = 'scd2.db'
+
+def get_db_connection() -> sqlite3.Connection:
+    """
+    Helper function to get a database connection.
+    
+    Returns:
+        sqlite3.Connection: Active database connection
+    """
+    return sqlite3.connect(DB_FILENAME)
+
 
 @pytest.fixture(scope="function")
-def setup_database_fixture():
+def setup_database_fixture() -> Generator[None, None, None]:
     """
-    Fixture to reset the database before each test.
-    This ensures a clean state for every test function.
+    Pytest fixture to reset the database before each test.
+    
+    This ensures a clean state for every test function by:
+    1. Creating a fresh database
+    2. Executing the SQL schema script
+    3. Loading initial sample data
+    
+    Yields:
+        None
+        
+    Note:
+        The database file is left after tests for manual inspection if needed.
     """
-    # Re-create the database using the existing script
+    # Setup: Re-create the database using the existing script
     create_database()
     yield
-    # Teardown: We can leave the DB for inspection or remove it.
-    # For now, we leave it.
+    # Teardown: Database is left for inspection
+    # Could add: os.remove(DB_FILENAME) if cleanup is desired
 
-def get_db_connection():
-    """Helper to get a database connection."""
-    return sqlite3.connect(DB_NAME)
 
-def test_initial_load(setup_database_fixture):
+def test_initial_load(setup_database_fixture: None) -> None:
     """
-    Test 1: Verify that the first run loads all records from source to CDC.
+    Test Case 1: Initial Load Verification
+    
+    Verifies that the first run of the SCD process correctly loads all records
+    from the source table to the CDC table with proper initialization:
+    - All records are inserted
+    - All records are marked as active (is_current = 1)
+    - No historical records exist yet
+    
+    Args:
+        setup_database_fixture: Pytest fixture that resets the database
+        
+    Assertions:
+        - Active record count matches source record count (7)
+        - Historical record count is 0
     """
     # Run the SCD process
     scd_type2_process()
@@ -47,10 +91,21 @@ def test_initial_load(setup_database_fixture):
 
     conn.close()
 
-def test_no_changes(setup_database_fixture):
+
+def test_no_changes(setup_database_fixture: None) -> None:
     """
-    Test 2: Verify that running the process again with no source changes 
-    does not alter the CDC table.
+    Test Case 2: Idempotency Verification
+    
+    Verifies that running the SCD process multiple times with no source changes
+    does not create duplicate records or alter the CDC table unnecessarily.
+    This confirms the process is idempotent.
+    
+    Args:
+        setup_database_fixture: Pytest fixture that resets the database
+        
+    Assertions:
+        - Record count remains unchanged after second run
+        - No new versions are created
     """
     # First run
     scd_type2_process()
@@ -70,29 +125,59 @@ def test_no_changes(setup_database_fixture):
     count_run_2 = cursor.fetchone()[0]
     conn.close()
 
-    assert count_run_1 == count_run_2, "Row count should remain same when no changes occur"
+    assert count_run_1 == count_run_2, (
+        f"Row count should remain same when no changes occur. "
+        f"Run 1: {count_run_1}, Run 2: {count_run_2}"
+    )
 
-def test_update_and_insert(setup_database_fixture):
+
+def test_update_and_insert(setup_database_fixture: None) -> None:
     """
-    Test 3: Verify SCD Type 2 logic for Updates and Inserts.
-    - Update an existing record (should expire old, insert new).
-    - Insert a completely new record.
+    Test Case 3: Update and Insert Operations
+    
+    Verifies the core SCD Type 2 functionality for handling:
+    1. Updates to existing records (creates new version, expires old version)
+    2. Insertion of completely new records
+    
+    Test Procedure:
+    - Initial load of 7 records
+    - Update record ID 1 (change price)
+    - Insert new record ID 99
+    - Verify historical tracking and versioning
+    
+    Args:
+        setup_database_fixture: Pytest fixture that resets the database
+        
+    Assertions:
+        - Updated record has 2 versions (old + new)
+        - Old version is properly expired (is_current=0, valid end_date)
+        - New version is active (is_current=1, end_date='9999-12-31')
+        - New record is inserted and active
     """
     # 1. Initial Load
     scd_type2_process()
+    
+    # Wait 1 second to ensure different timestamps for the next run
+    time.sleep(1)
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     # 2. Simulate Changes in Source
-    # Update ID 1: Change Price from 1299.99 to 1400.00
-    cursor.execute("UPDATE sales_records_current SET price = 1400.00 WHERE id = 1")
+    # Update ID 1: Change Price from 1299.99 to 1400.00 (and update total_amount accordingly)
+    cursor.execute("""
+        UPDATE sales_records_current 
+        SET price = 1400.00, total_amount = 1400.00 
+        WHERE id = 1
+    """)
     
     # Insert New Record ID 99
     cursor.execute("""
         INSERT INTO sales_records_current 
-        (id, transaction_date, product_name, category, price, quantity, total_amount, customer_id, region, status)
-        VALUES (99, '2024-02-01', 'New Gadget', 'Electronics', 199.99, 1, 199.99, 2001, 'East', 'Active')
+        (id, transaction_date, product_name, category, price, quantity, 
+         total_amount, customer_id, region, status)
+        VALUES (99, '2024-02-01', 'New Gadget', 'Electronics', 199.99, 1, 
+                199.99, 2001, 'East', 'Active')
     """)
     conn.commit()
     conn.close()
@@ -105,24 +190,56 @@ def test_update_and_insert(setup_database_fixture):
     cursor = conn.cursor()
 
     # Check Update Logic for ID 1
-    cursor.execute("SELECT price, is_current, row_end_date FROM sales_records_cdc WHERE id = 1 ORDER BY row_start_date")
+    cursor.execute("""
+        SELECT price, is_current, row_end_date 
+        FROM sales_records_cdc 
+        WHERE id = 1 
+        ORDER BY row_start_date
+    """)
     versions = cursor.fetchall()
 
-    assert len(versions) == 2, "ID 1 should have 2 versions (history + current)"
+    assert len(versions) == 2, (
+        f"ID 1 should have 2 versions (history + current), found {len(versions)}"
+    )
     
-    # Old Version
-    assert versions[0][0] == 1299.99, "Old version price mismatch"
-    assert versions[0][1] == 0, "Old version should be inactive (is_current=0)"
-    assert versions[0][2] != '9999-12-31', "Old version should have a valid end date"
+    # Old Version Validation
+    old_price, old_is_current, old_end_date = versions[0]
+    assert old_price == 1299.99, (
+        f"Old version price mismatch: expected 1299.99, got {old_price}"
+    )
+    assert old_is_current == 0, (
+        f"Old version should be inactive (is_current=0), got {old_is_current}"
+    )
+    assert old_end_date != '9999-12-31', (
+        f"Old version should have a valid end date, not {old_end_date}"
+    )
 
-    # New Version
-    assert versions[1][0] == 1400.00, "New version price mismatch"
-    assert versions[1][1] == 1, "New version should be active (is_current=1)"
-    assert versions[1][2] == '9999-12-31', "New version should have max end date"
+    # New Version Validation
+    new_price, new_is_current, new_end_date = versions[1]
+    assert new_price == 1400.00, (
+        f"New version price mismatch: expected 1400.00, got {new_price}"
+    )
+    assert new_is_current == 1, (
+        f"New version should be active (is_current=1), got {new_is_current}"
+    )
+    assert new_end_date == '9999-12-31', (
+        f"New version should have max end date '9999-12-31', got {new_end_date}"
+    )
 
     # Check Insert Logic for ID 99
-    cursor.execute("SELECT count(*) FROM sales_records_cdc WHERE id = 99 AND is_current = 1")
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM sales_records_cdc 
+        WHERE id = 99 AND is_current = 1
+    """)
     new_record_count = cursor.fetchone()[0]
-    assert new_record_count == 1, "New record ID 99 should be inserted and active"
+    assert new_record_count == 1, (
+        f"New record ID 99 should be inserted and active, found {new_record_count}"
+    )
 
     conn.close()
+
+
+if __name__ == "__main__":
+    # Allow running tests directly with: python test_scd_type2.py
+    pytest.main([__file__, "-v"])
